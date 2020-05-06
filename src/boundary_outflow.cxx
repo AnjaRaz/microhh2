@@ -29,7 +29,9 @@ namespace
     template<typename TF>
     void compute_outflow_2nd(
             TF* const restrict a,
-            const int iend, const int igc,
+            const int istart,
+            const int iend, const int jend,
+            const int igc, const int jgc,
             const int icells, const int jcells, const int kcells,
             const int ijcells)
     {
@@ -44,12 +46,36 @@ namespace
                     const int ijk_gc = (iend+i  ) + j*icells + k*ijcells;
                     a[ijk_gc] = a[ijk];
                 }
+          
     }
+    
+    
+    template<typename TF>
+    void compute_outflowy_2nd(
+            TF* const restrict a,
+            const int iend, const int jend,
+            const int igc, const int jgc,
+            const int icells, const int jcells, const int kcells,
+            const int ijcells)
+    {
+        const int ii = 1;
+        
+        for (int k=0; k<kcells; ++k)
+            for (int j=0; j<jgc; ++j)
+                for (int i=0; i<icells; ++i)
+                {
+                    const int ijk    = i + (jend - 1 - j)*icells + k*ijcells;
+                    const int ijk_gc = i + (jend + j    )*icells + k*ijcells;
+                    a[ijk_gc] = a[ijk];
+                }
+    }
+    
 
     template<typename TF>
     void compute_inflow_2nd(
             TF* const restrict a,// const TF value,
-            const int istart, const int igc,
+            const int istart,
+            const int igc, const int jgc,
             const int icells, const int jcells, const int kcells,
             const int ijcells)
     {
@@ -62,6 +88,28 @@ namespace
                 {
                     const int ijk    = (istart+i  ) + j*icells + k*ijcells;
                     const int ijk_gc = (istart-1-i) + j*icells + k*ijcells;
+                    a[ijk_gc] = a[ijk];
+                }
+    }
+    
+    
+    template<typename TF>
+    void compute_inflowy_2nd(
+            TF* const restrict a,// const TF value,
+            const int jstart,
+            const int igc, const int jgc,
+            const int icells, const int jcells, const int kcells,
+            const int ijcells)
+    {
+        const int ii = 1;
+    
+    
+        for (int k=0; k<kcells; ++k)
+            for (int j=0; j<jgc; ++j)
+                for (int i=0; i<icells; ++i)
+                {
+                    const int ijk    =  i + (jstart + j)*icells     + k*ijcells;
+                    const int ijk_gc =  i + (jstart - j - 1)*icells + k*ijcells;
                     a[ijk_gc] = a[ijk];
                 }
     }
@@ -86,6 +134,7 @@ namespace
                 a[ijk+ii2] = TF(3.)*a[ijk] - TF( 7./2.)*a[ijk-ii1] + TF(3./2.)*a[ijk-ii2];
                 a[ijk+ii3] = TF(5.)*a[ijk] - TF(15./2.)*a[ijk-ii1] + TF(7./2.)*a[ijk-ii2];
             }
+
     }
 
     template<typename TF>
@@ -108,6 +157,7 @@ namespace
                 a[ijk-ii2] = value + TF(33./8.)*a[ijk] - TF( 54./8.)*a[ijk+ii1] + TF(21./8.)*a[ijk+ii2];
                 a[ijk-ii3] = value + TF(65./8.)*a[ijk] - TF(110./8.)*a[ijk+ii1] + TF(45./8.)*a[ijk+ii2];
             }
+
     }
 }
 
@@ -135,7 +185,9 @@ void Boundary_outflow<TF>::exec(TF* const restrict data)
         if (grid.get_spatial_order() == Grid_order::Second)
             compute_outflow_2nd(
                     data,
-                    gd.iend, gd.igc,
+                    gd.istart,
+                    gd.iend, gd.jend,
+                    gd.igc, gd.jgc,
                     gd.icells, gd.jcells, gd.kcells,
                     gd.ijcells);
 
@@ -146,6 +198,17 @@ void Boundary_outflow<TF>::exec(TF* const restrict data)
                     gd.icells, gd.jcells, gd.kcells,
                     gd.ijcells);
     }
+    
+    if (md.mpicoordy == md.npy-1)
+    {
+        if (grid.get_spatial_order() == Grid_order::Second)
+            compute_outflowy_2nd(
+                    data,
+                    gd.iend, gd.jend,
+                    gd.igc, gd.jgc,
+                    gd.icells, gd.jcells, gd.kcells,
+                    gd.ijcells);
+    }
 
     // Inflow
     if (md.mpicoordx == 0)
@@ -153,7 +216,8 @@ void Boundary_outflow<TF>::exec(TF* const restrict data)
         if (grid.get_spatial_order() == Grid_order::Second)
             compute_inflow_2nd(
                     data,// TF(0.),
-                    gd.istart, gd.igc,
+                    gd.istart,
+                    gd.igc, gd.jgc,
                     gd.icells, gd.jcells, gd.kcells,
                     gd.ijcells);
 
@@ -161,6 +225,17 @@ void Boundary_outflow<TF>::exec(TF* const restrict data)
             compute_inflow_4th(
                     data, TF(0.),
                     gd.istart,
+                    gd.icells, gd.jcells, gd.kcells,
+                    gd.ijcells);
+    }
+    
+    if (md.mpicoordy == 0)
+    {
+        if (grid.get_spatial_order() == Grid_order::Second)
+            compute_inflowy_2nd(
+                    data,
+                    gd.jstart,
+                    gd.igc, gd.jgc,
                     gd.icells, gd.jcells, gd.kcells,
                     gd.ijcells);
     }
